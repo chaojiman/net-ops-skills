@@ -40,3 +40,10 @@ iperf3 -c <目标服务器> -R -t 3 -b 50M
 - **ICMP 误判**：不少 NAT 机对大陆方向 ICMP 100% 丢包但 TCP 100% 连通，勿以 `ping` 判断线路好坏。
 - **隐私上传开关**：`goecs`、`TcpQuality`、`digvps` 默认可能公开上传报告；涉及隐私的机器务必加 `-upload=false` 或 `--no-rank-upload`。
 - **动态家宽提醒**：若为动态 IP 家宽机，需先确认 DDNS 域名自动刷新正常，客户端链式配置一律填 DDNS 域名而非写死 IP。
+
+## 四、Debian / 非交互 SSH 体检避坑与定向分流建议
+
+- **避免 `sudo bash <(curl ...)` 失败**：`sudo` 默认关闭额外文件描述符，进程替换会报 `/dev/fd/63: No such file or directory`；正确做法是先 `curl -fsSL <URL> -o /var/tmp/script.sh` 落盘，再 `sudo -E bash /var/tmp/script.sh`。
+- **NodeQuality 权限与小核耗时**：`NodeQuality` 依赖 `mount`/`chroot`，必须用 `sudo -E` 运行（普通用户会产出空报告）；0.25 vCPU 等突发共享小核跑完 `Geekbench 5` 可能耗时 20~30 分钟且期间满载会拉高同机代理握手延迟，若只需测 IP 质量请直接单跑 `IP.Check.Place`。
+- **非交互 SSH 跑 `IP.Check.Place`**：须显式传入 `TERM=xterm LC_ALL=C.UTF-8`（如 `sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/ipcheck.sh -4 -y -p`），否则会报 `'unknown': unknown terminal type` 直接退出。
+- **单站点 403（如机房 IP 被 Reddit 屏蔽）处理原则**：不要为了少数站点把整台干净原生 IP 挂进 Cloudflare WARP（WARP 公共段同样常遭 Reddit 未登录 403 且伤 AI 风控）；优先在客户端为该站点建独立策略组指向干净节点，或仅在服务端针对该几个域名定向出站到已有干净后端。

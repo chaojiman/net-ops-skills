@@ -110,6 +110,28 @@ remote = "backend.example.com:24843"
 
 Alpine 开机自启：写入 `/etc/local.d/realm.start` 并 `rc-update add local default`。
 
+Debian/Ubuntu（systemd）单元模板（`/etc/systemd/system/realm.service`，配合 `chmod 700 /etc/realm && chmod 600 /etc/realm/config.toml`）：
+
+```ini
+[Unit]
+Description=Realm TCP Relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/realm -c /etc/realm/config.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> **计费/限流云机提醒**：若同机同时运行 `sing-box` 与 `realm` 并配了月出站自动熔断脚本，达到阈值时必须**同时停止 `sing-box` 与 `realm`**，避免漏停中转进程导致超额扣费。
+
 ### 客户端侧改动要点
 
 - **后端为 REALITY**：客户端仅改 `server`（前置 IP）与 `port`（前置外部端口），`sni / pbk / short-id / uuid / flow` 原样保留。

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.0 (2026-11-24)
+
+- `nat-vps-proxy`（`references/low-mem-and-realm.md`）：补充 `realm` 的 Debian/Ubuntu systemd 单元模板，以及同机并跑 `sing-box` + `realm` 时月出站熔断须同时停止双服务的避坑提醒。
+- `nat-vps-proxy`（`references/security-hardening.md`）：新增「云厂商计费防爆与零暴露探针接入」章节（GCP 外部 IPv6 层级计费陷阱 + `vnstat` 熔断 + 受限 `permitopen` SSH 隧道探针范式）。
+- `nat-vps-proxy`（`references/server-benchmark.md`）：补充 `sudo` 进程替换 `/dev/fd/63` 报错、非交互 SSH `TERM=xterm` 要求、共享小核跑 Geekbench5 耗时影响及单站点 403 定向分流建议。
+
 ## v1.0.0 (2026-11-24)
 
 - 初始合并发布三套跨平台网络运维 Skill：`nat-vps-proxy`、`ipsock-check`、`proxy-leak-check`。

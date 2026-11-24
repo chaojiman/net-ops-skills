@@ -85,3 +85,12 @@ ssh -o PubkeyAuthentication=no -p <SSH端口> root@198.51.100.10   # 应报 Perm
 ```
 
 > 改动前先确认面板 VNC 控制台入口可用作兜底；重装或面板重置后需重新复查第 6 步。
+
+## 六、云厂商计费防爆与零暴露探针接入
+
+- **云厂商双栈层级陷阱（以 GCP 为例）**：普通自定义外部 IPv6 子网默认绑定 `PREMIUM` 网络层级（按量计费、不享 `STANDARD` 每月免费出站额度），建机时指定 `--ipv6-network-tier=STANDARD` 会报错。低预算云机若无 IPv6 入站硬需求，建议实例设为 `IPV4_ONLY` + `STANDARD` 层级，并用 `vnstat` + `cron`（每 15 分钟）在达到免费额度 90% 时自动停止代理与中转服务（如 `systemctl stop sing-box realm`）。
+- **零公网暴露探针上报范式**：节点向集中监控端上报指标时，不要把监控中心上报端口直接暴露在公网；改在监控端 `authorized_keys` 为每个节点分配独立受限密钥：
+  ```text
+  restrict,port-forwarding,permitopen="127.0.0.1:<上报端口>" ssh-ed25519 <PUBKEY> <node>-tunnel
+  ```
+  节点侧以无 shell 专用系统用户运行 `ssh -N -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=...` 建立本地端口转发，再由沙箱化 `agent`（`NoNewPrivileges=yes`、`ProtectSystem=strict`、`MemoryMax=64M`）经 `127.0.0.1` 上报，实现零公网监听面。
