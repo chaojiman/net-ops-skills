@@ -1,0 +1,27 @@
+# 私有个人叠加层（绝不入库）
+local.md
+**/local.md
+.privacy-denylist.local
+
+# 备份与临时文件
+*.bak
+*.bak*
+*.orig
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+
+# 体检报告与 darwin 评测产物（可能含真实 IP/日志）
+reports/
+*.report.json
+proxy-check-report*.json
+results.tsv
+test-prompts.json
+trigger-tests.json
+.last-update-check
