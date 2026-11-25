@@ -50,6 +50,12 @@ iperf3 -c <目标服务器> -R -t 3 -b 50M
 
 ## 五、指定省份（如福建移动）专项路由与 v4 / v6 入口同台 A/B 实测
 
+> **⚠️ 大厂云（GCP / AWS / Azure）防风控红线（必读）**：
+> **严禁在 GCP 等风控严格的大厂云实例内部运行 `NetQuality`（`Check.Place -N`）、完整 `NodeQuality` 网络章或并发 `nexttrace --tcp/--udp --psize 1400`！**
+> 原因：`NetQuality` 会并发启动多个 `nexttrace -p 80 -q 8 --tcp --psize 1400` 向外部靶标高速发送半连接裸 TCP SYN / UDP 大包，会被 GCP 虚拟交换机反滥用系统直接判定为 **TCP SYN Flood 拒绝服务（DoS）攻击** 并下发 72 小时暂停警告邮件！
+> - **大厂云安全替代方案**：① **禁在云机内跑发包扫描脚本**，延迟与单流/多流吞吐**一律从本机客户端发起真实代理 HTTPS 下载实测**（纯正常 TLS 1.3 流量，零风控）；② 去程在本机跑 `tracert -d`；若确需看单条回程，仅对自身 IP 跑低频 ICMP `traceroute -I -q 1`（禁 `--tcp` 大包并发）；③ 解锁用单条 `curl` 按需验状态码，避免扫 25 端口。
+> - 下方 `NetQuality -R 福建` 仅限用于**无严格出站 SYN 审计的普通独立/常规 VPS**。
+
 `NetQuality`（`Check.Place -N`）默认无参仅测试**北京 / 上海 / 广东**三地回程，且仅看回程不看去程、易受测试时段干扰。若实际宽带位于特定省份（如**福建移动**），所有节点体检必须补齐目标省份专项路由与本机真实双栈入口 A/B 实测：
 
 ### 1. 服务端补跑指定省份三网回程（以福建 `-R 福建` 为例）
@@ -73,8 +79,7 @@ sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/net.sh -6 -R 福建 -n -p -o /var/t
 
 1. **防时段误判**：亚太云机（如 GCP 香港/台湾/东京 `STANDARD` 层级）在移动方向回程均走香港/东京 CMI（`AS15169 -> AS58453 -> AS9808`），电信/联通绕美西（`Verizon/Level3`）。白天闲时移动直连 4 并发可达 150~210 Mbps，而晚高峰 CMI 国际公网口拥塞丢包会跌至个位数 Mbps——**切勿拿他人闲时 NQ 截图与自身晚高峰结果对比误判机器层级优劣**。
 2. **补测本机去程（破除 NQ 只看回程盲区）**：在本机家宽直接执行 `tracert -d -4 <VPS_V4>` 与 `tracert -d -6 <VPS_V6>`（如某云东京节点去程 v4 直拔东京 CMI 71ms，而 v6 先绕香港 CMI 再折返东京 88ms）。
-3. **云机同网卡 `Standard IPv4 + Premium IPv6` 同台 A/B 实测范式**：
-   - GCP 支持在同一张双栈网卡上同时配置免费层 `network-tier=STANDARD`（IPv4）与 `ipv6-network-tier=PREMIUM`（IPv6），服务端 `sing-box` 设 `"listen": "::"` 即可同台同刻对比 v4 进 vs v6 进。
-   - **务必等远端 `nexttrace` / `IP.Check.Place` 体检完全结束、CPU 回到空载后再测吞吐**（0.25 vCPU 满载期测速会严重失真超时）。
-   - 同时对比 **单流（5~10MB）与 4 并发（20MB）**：实测福建移动至香港/东京双栈云机时，尽管香港 v6 握手略低（37ms vs 46ms），但国内跨省 CMNET v6 回程易出现排队限速，导致 4 并发吞吐 `Standard IPv4`（香港 213 Mbps / 东京 158 Mbps）大幅反超 `Premium IPv6`（48~56 Mbps）。
-   - **测毕定型防扣费**：若实测 `Standard IPv4` 更优或持平，立即将网卡切回 `IPV4_ONLY` 并 `ip -6 addr flush dev <网卡> scope global`，杜绝残留 `Premium IPv6` 产生按量账单。
+3. **云机同网卡双栈 `STANDARD`（含 `v6-standard`）开启与同台 A/B 实测范式**：
+   - **开启 GCP 标准层 IPv6（`v6-standard`，`2600:1902::` 段）纯 CLI 三步法**：网页端不可选且 `gcloud` 的 `--ipv6-network-tier` 参数枚举仅列 `PREMIUM`；须① 先将项目默认网络层级设为标准层：`gcloud compute project-info update --default-network-tier=STANDARD`；② **新建**双栈子网（`--stack-type=IPV4_IPV6 --ipv6-access-type=EXTERNAL`，此时子网自动分配 `2600:1902::` 标准层池，而非 `2600:1900::` 高级层池）；③ 建机或更新网卡时**切勿传 `--ipv6-network-tier`**，仅传 `--stack-type=IPV4_IPV6`（已有实例迁子网须停机后分两次单独执行：先改 `--subnetwork`，再改 `--stack-type=IPV4_IPV6`），即可获得 `networkTier: STANDARD` 的外部 IPv6。
+   - **务必在远端空载状态下从本机客户端发起真实代理 HTTPS 下载测吞吐**（0.25 vCPU 满载期测速会严重失真），同时对比**单流（5~10MB）与 4 并发（20MB）**。
+   - **测毕定型防扣费**：若最终仅保留单栈 IPv4，立即将网卡切回 `IPV4_ONLY` 并 `ip -6 addr flush dev <网卡> scope global`。
