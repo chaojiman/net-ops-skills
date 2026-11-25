@@ -63,6 +63,7 @@ sb status
 - **内部端口取 20000 以上**（如 `24843`），避开 443/8080 撞车与默认规则干扰。
 - **必须显式指定 SNI**（如 `www.microsoft.com` / `dl.google.com` / `www.apple.com`），切勿写 `auto`（脚本会把字面量 `auto` 写入配置导致失效）。
 - **`short_id` 两阶段加固**：默认生成 `""` 空串；先改为 `["", "<16位hex>"]` 平滑过渡，等所有客户端切换生效后，再用 `jq` 删除空串并 `sing-box check` 重启（`sb url` 不输出手工 `sid`，分发时需手动补 `&sid=<新值>`）。
+- **非交互批量自动化建节点**：非交互 `sudo` 下包装脚本 `sb` 可能不在默认 `PATH` 或触发交互等待；安装二进制后可直接 `rm -f /etc/sing-box/conf/Hysteria2-*.json`，用 `/etc/sing-box/bin/sing-box generate uuid` 与 `sing-box generate reality-keypair` 一步生成 `/etc/sing-box/conf/VLESS-REALITY-24843.json`（双栈入站设 `"listen": "::"` 并直接写入非空 16 位 hex `short_id`）。
 - **境外链式纯落地备选**：若仅作为境外链式落地（绝不用于家宽直连过墙），可用 SS2022（`2022-blake3-aes-128-gcm`，服务端仅听 TCP + 客户端开 UoT v2）减少双层 TLS 开销，详见 [references/security-hardening.md](./references/security-hardening.md)。
 
 ## 第 3 步：端口映射与外部可达性
@@ -120,7 +121,7 @@ curl -s --socks5-hostname 127.0.0.1:21080 https://ipinfo.io/json | head -8
 ## 第 7 步：安全加固 & 服务端体检
 
 - **上线必做安全加固**（入站白名单、防 SSRF 规则、配置权限 `700/600`、公网监听巡检、SSH 仅留密钥登录）：见 [references/security-hardening.md](./references/security-hardening.md)。
-- **服务端原生态体检**（NodeQuality / Check.Place / goecs / NAT 禁碰清单）：见 [references/server-benchmark.md](./references/server-benchmark.md)。
+- **服务端原生态体检与双栈/分省对比**（NodeQuality / Check.Place 指定省份 `-R 福建` 专项回程 / v4 vs v6 入口同台 A/B 实测 / NAT 禁碰清单）：见 [references/server-benchmark.md](./references/server-benchmark.md)。
 
 ## 常见错误速查
 

@@ -47,3 +47,34 @@ iperf3 -c <目标服务器> -R -t 3 -b 50M
 - **NodeQuality 权限与小核耗时**：`NodeQuality` 依赖 `mount`/`chroot`，必须用 `sudo -E` 运行（普通用户会产出空报告）；0.25 vCPU 等突发共享小核跑完 `Geekbench 5` 可能耗时 20~30 分钟且期间满载会拉高同机代理握手延迟，若只需测 IP 质量请直接单跑 `IP.Check.Place`。
 - **非交互 SSH 跑 `IP.Check.Place`**：须显式传入 `TERM=xterm LC_ALL=C.UTF-8`（如 `sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/ipcheck.sh -4 -y -p`），否则会报 `'unknown': unknown terminal type` 直接退出。
 - **单站点 403（如机房 IP 被 Reddit 屏蔽）处理原则**：不要为了少数站点把整台干净原生 IP 挂进 Cloudflare WARP（WARP 公共段同样常遭 Reddit 未登录 403 且伤 AI 风控）；优先在客户端为该站点建独立策略组指向干净节点，或仅在服务端针对该几个域名定向出站到已有干净后端。
+
+## 五、指定省份（如福建移动）专项路由与 v4 / v6 入口同台 A/B 实测
+
+`NetQuality`（`Check.Place -N`）默认无参仅测试**北京 / 上海 / 广东**三地回程，且仅看回程不看去程、易受测试时段干扰。若实际宽带位于特定省份（如**福建移动**），所有节点体检必须补齐目标省份专项路由与本机真实双栈入口 A/B 实测：
+
+### 1. 服务端补跑指定省份三网回程（以福建 `-R 福建` 为例）
+
+小核小盘机切勿直接跑 `-y`（会拉取百兆级 `imagemagick` 且未设 `DEBIAN_FRONTEND=noninteractive` 时易卡死交互弹窗）；先装轻量依赖 + `nexttrace`，再用 **`-n -p </dev/null`** 秒出目标省份三网路由（探测靶标如 `FJ-cm-v4.ip.zstaticcdn.com` / `FJ-cm-v6.ip.zstaticcdn.com`）：
+
+```bash
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq && apt-get install -y -qq jq curl mtr-tiny bc
+command -v nexttrace >/dev/null || curl -fsSL https://nxtrace.org/nt | bash
+curl -fsSL https://raw.githubusercontent.com/xykt/NetQuality/main/net.sh -o /var/tmp/net.sh
+
+# IPv4 福建三网回程（电信 / 联通 / 移动）
+sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/net.sh -4 -R 福建 -n -p -o /var/tmp/nq_fj_v4.txt </dev/null
+
+# 双栈机同步加测 IPv6 福建三网回程
+sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/net.sh -6 -R 福建 -n -p -o /var/tmp/nq_fj_v6.txt </dev/null
+```
+
+### 2. 双向去回程对账 + 空载状态 v4 / v6 入口吞吐硬对比
+
+1. **防时段误判**：亚太云机（如 GCP 香港/台湾/东京 `STANDARD` 层级）在移动方向回程均走香港/东京 CMI（`AS15169 -> AS58453 -> AS9808`），电信/联通绕美西（`Verizon/Level3`）。白天闲时移动直连 4 并发可达 150~210 Mbps，而晚高峰 CMI 国际公网口拥塞丢包会跌至个位数 Mbps——**切勿拿他人闲时 NQ 截图与自身晚高峰结果对比误判机器层级优劣**。
+2. **补测本机去程（破除 NQ 只看回程盲区）**：在本机家宽直接执行 `tracert -d -4 <VPS_V4>` 与 `tracert -d -6 <VPS_V6>`（如某云东京节点去程 v4 直拔东京 CMI 71ms，而 v6 先绕香港 CMI 再折返东京 88ms）。
+3. **云机同网卡 `Standard IPv4 + Premium IPv6` 同台 A/B 实测范式**：
+   - GCP 支持在同一张双栈网卡上同时配置免费层 `network-tier=STANDARD`（IPv4）与 `ipv6-network-tier=PREMIUM`（IPv6），服务端 `sing-box` 设 `"listen": "::"` 即可同台同刻对比 v4 进 vs v6 进。
+   - **务必等远端 `nexttrace` / `IP.Check.Place` 体检完全结束、CPU 回到空载后再测吞吐**（0.25 vCPU 满载期测速会严重失真超时）。
+   - 同时对比 **单流（5~10MB）与 4 并发（20MB）**：实测福建移动至香港/东京双栈云机时，尽管香港 v6 握手略低（37ms vs 46ms），但国内跨省 CMNET v6 回程易出现排队限速，导致 4 并发吞吐 `Standard IPv4`（香港 213 Mbps / 东京 158 Mbps）大幅反超 `Premium IPv6`（48~56 Mbps）。
+   - **测毕定型防扣费**：若实测 `Standard IPv4` 更优或持平，立即将网卡切回 `IPV4_ONLY` 并 `ip -6 addr flush dev <网卡> scope global`，杜绝残留 `Premium IPv6` 产生按量账单。

@@ -44,7 +44,8 @@ sudo find /etc/sing-box/conf -type f -exec chmod 600 {} +
 # 1. 公网监听（排除 loopback 与 100.64/10 内网）
 ss -ltnup | awk 'NR==1 || ($5 !~ /^127\.|^\[::1\]|^::1/ && $5 !~ /^100\./)'
 # 2. 核对面板映射规则与本机实际监听一一对应，删掉废弃映射
-# 3. 排查多余暴露：rpcbind(111)、cups(631)、avahi(5353)、mysql(3306)、redis(6379)、Docker 端口
+# 3. 排查多余暴露：rpcbind(111)、cups(631)、avahi(5353)、systemd-resolved LLMNR(5355)、mysql(3306)、redis(6379)、Docker 端口
+#    Debian/Ubuntu 若见 0.0.0.0:5355 / [::]:5355，写 /etc/systemd/resolved.conf.d/no-llmnr.conf (LLMNR=no / MulticastDNS=no) 并重启 systemd-resolved
 # 4. 防火墙与安全组两层同查
 iptables -S INPUT 2>/dev/null; ufw status 2>/dev/null
 # 5. SSH 鉴权状态
