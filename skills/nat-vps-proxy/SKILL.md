@@ -105,16 +105,17 @@ curl -s --socks5-hostname 127.0.0.1:21080 https://ipinfo.io/json | head -8
   - OpenRC（Alpine）：`/etc/conf.d/sing-box` 写 `export GOMEMLIMIT=64MiB`；查真实 PID 用 `ss -ltnp | grep ":<端口> "`（`pgrep -f` 会误中 `supervise-daemon`）；BusyBox 看 RSS 用 `grep VmRSS /proc/<PID>/status`。
 - **双栈机锁 v4 出站 + 独立加密 DNS**（入站保留 v6，仅锁出站为 v4）：
   - **首选 IP 字面量 DoT**（如 `{"type":"tls","tag":"dns-tls","server":"1.1.1.1"}`），勿用域名形式 DoH 当默认解析器（避免 bootstrap 被拦导致 REALITY 封面站回落超时）。
-  - 在 `/etc/sing-box/config.json` 中配 `route.default_domain_resolver: { "server": "dns-tls", "strategy": "ipv4_only" }`，并务必追加防 SSRF 内网拦截规则（见 [references/security-hardening.md](./references/security-hardening.md)）。
-  - 改完执行 `/etc/sing-box/bin/sing-box check -c /etc/sing-box/config.json -C /etc/sing-box/conf` 再重启。
+  - 在 `/etc/sing-box/config.json` 中配 `route.default_domain_resolver: { "server": "dns-tls", "strategy": "ipv4_only" }`，并在 `route.rules` 追加 `{"ip_version": 6, "action": "reject"}`（堵死客户端发裸 IPv6 目标从双栈网卡漏出，确保 100% 走纯净静态 IPv4 出站）与防 SSRF 内网拦截规则（见 [references/security-hardening.md](./references/security-hardening.md)）。
+  - 改完执行 `/etc/sing-box/bin/sing-box check -c /etc/sing-box/config.json -C /etc/sing-box/conf` 再重启，并用客户端经 `v6` 入口请求 `https://api64.ipify.org` 实测确认回显为静态 IPv4。
 
 ## 第 6 步：接入客户端链式代理（通用 Mihomo / Shadowrocket）
 
 链式路径：`设备 → 前置中转节点 → 落地节点（自建 VPS） → 目标站点`（仅在入口仅境外可达或需要固定出口 IP 时使用；能低延迟直连则直接直连）。
 
 - **Mihomo / Clash Meta 通用写法**：在落地节点配置中指定 `dialer-proxy: <前置组或前置节点名>` 与 `udp: true`；
-  - 顶层 `ipv6: true`（允许 IPv6 字面量节点拨号）；若希望应用流量锁死 v4，设 `dns.ipv6: false`（不影响代理服务器域名解析）。
+  - 顶层 `ipv6: true`（允许 IPv6 字面量节点拨号）；若希望应用流量锁死 v4，设 `dns.ipv6: false`（不影响代理服务器域名解析）。客户端开了 IPv4 优先时勿用单双栈域名节点选线，改用显式 IPv6 字面量或 `v6→v4` `fallback` 顺位组。
   - 节点写进策略组后，需在实际出口组（如 `默认代理` / 业务分流组）选中该落地节点本身才会生效。
+  - **链式中转前置（`dialer-proxy`）故障转移排名**：切勿轻信面板最小握手延迟，须按「`204 响应(s)` → `单流 5MB` → `最低握手` → `4 并发 QoS 照妖镜`」连同挂接落地后的端到端表现实测排序，详见 [references/server-benchmark.md](./references/server-benchmark.md)。
 - **Shadowrocket**：编辑落地节点 → **代理通过** → 选前置节点/分组（切勿改全局“设置→代理→前置代理”）。
 - **低内存备选与 `realm` 透传对比**：见 [references/low-mem-and-realm.md](./references/low-mem-and-realm.md)。
 

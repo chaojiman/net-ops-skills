@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.0 (2026-11-25)
+
+- `nat-vps-proxy`（`references/server-benchmark.md`）：新增「客户端安全测速四维权重（`204 响应` → `单流 5MB` → `最低握手` → `4 并发 QoS 照妖镜`）与链式中转前置故障转移排序范式」（双层同测、剔除面板假低延迟丢包点、识别风控期并发限速、跨云异构容灾及双栈 `fallback` 选线避坑）。
+- `nat-vps-proxy`（`references/security-hardening.md`、`SKILL.md`）：补强双栈机「6进4出」路由层 `{"ip_version": 6, "action": "reject"}` 硬阻断裸 IPv6 旁路泄漏规则与 `api64.ipify.org` 验收标准；更新 GCP 标准层按区域（Per Region）独立 200 GB/月免费额度、在用公网 IPv4 `$0.005/h` 同价转静态锁纯净度及纯 v6 取舍账本。
+
 ## v1.2.0 (2026-11-25)
 
 - `nat-vps-proxy`（`references/server-benchmark.md`）：新增大厂云（GCP/AWS）禁跑 `NetQuality` / `nexttrace --tcp` 大包并发防触发 DoS 风控警告红线；补充 GCP 开启标准层 IPv6（`v6-standard` `2600:1902::` 段）的项目默认层级两步法、普通 VPS 指定省份（`-R 福建`）轻量跑法及空载双栈入口吞吐对比范式。
