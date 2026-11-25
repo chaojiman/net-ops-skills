@@ -81,5 +81,5 @@ sudo TERM=xterm LC_ALL=C.UTF-8 bash /var/tmp/net.sh -6 -R 福建 -n -p -o /var/t
 2. **补测本机去程（破除 NQ 只看回程盲区）**：在本机家宽直接执行 `tracert -d -4 <VPS_V4>` 与 `tracert -d -6 <VPS_V6>`（如某云东京节点去程 v4 直拔东京 CMI 71ms，而 v6 先绕香港 CMI 再折返东京 88ms）。
 3. **云机同网卡双栈 `STANDARD`（含 `v6-standard`）开启与同台 A/B 实测范式**：
    - **开启 GCP 标准层 IPv6（`v6-standard`，`2600:1902::` 段）纯 CLI 三步法**：网页端不可选且 `gcloud` 的 `--ipv6-network-tier` 参数枚举仅列 `PREMIUM`；须① 先将项目默认网络层级设为标准层：`gcloud compute project-info update --default-network-tier=STANDARD`；② **新建**双栈子网（`--stack-type=IPV4_IPV6 --ipv6-access-type=EXTERNAL`，此时子网自动分配 `2600:1902::` 标准层池，而非 `2600:1900::` 高级层池）；③ 建机或更新网卡时**切勿传 `--ipv6-network-tier`**，仅传 `--stack-type=IPV4_IPV6`（已有实例迁子网须停机后分两次单独执行：先改 `--subnetwork`，再改 `--stack-type=IPV4_IPV6`），即可获得 `networkTier: STANDARD` 的外部 IPv6。
-   - **务必在远端空载状态下从本机客户端发起真实代理 HTTPS 下载测吞吐**（0.25 vCPU 满载期测速会严重失真），同时对比**单流（5~10MB）与 4 并发（20MB）**。
-   - **测毕定型防扣费**：若最终仅保留单栈 IPv4，立即将网卡切回 `IPV4_ONLY` 并 `ip -6 addr flush dev <网卡> scope global`。
+   - **务必在远端空载状态下从本机客户端发起真实代理 HTTPS 下载测吞吐**（0.25 vCPU 满载期测速会严重失真），同时对比**单流（5~10MB）与 4 并发（20MB）**：实测中国移动方向下，GCP 免费的 `v6-standard`（`2600:1902::` 本地直交 CMI）4 并发吞吐（香港 ~245 Mbps / 东京 ~109 Mbps）大幅反超昂贵的 `v6-premium`（`2600:1900::` 仅 48~56 Mbps），且与 `v4-standard` 同属标准计费层，可直接保留全 `STANDARD` 双栈互备。
+   - **测毕定型防扣费**：若最终不需 IPv6，可将网卡切回 `IPV4_ONLY` 并 `ip -6 addr flush dev <网卡> scope global`；切勿误留 `2600:1900::` 高级层 IPv6 产生溢价账单。
