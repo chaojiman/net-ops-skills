@@ -31,7 +31,7 @@ import time
 import urllib.parse
 import urllib.request
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 OS_NAME = platform.system()  # 'Darwin' | 'Windows' | 'Linux'
 CURL_BIN = "curl.exe" if OS_NAME == "Windows" else (shutil.which("curl") or "curl")
@@ -115,8 +115,13 @@ def detect_system_proxy():
             )
             enable, _ = winreg.QueryValueEx(key, "ProxyEnable")
             server = ""
+            override = ""
             try:
                 server, _ = winreg.QueryValueEx(key, "ProxyServer")
+            except OSError:
+                pass
+            try:
+                override, _ = winreg.QueryValueEx(key, "ProxyOverride")
             except OSError:
                 pass
             winreg.CloseKey(key)
@@ -124,6 +129,8 @@ def detect_system_proxy():
             if server:
                 info["http"] = server
                 info["https"] = server
+            if override:
+                info["override"] = override
         except Exception as e:
             info["error"] = str(e)
     elif OS_NAME == "Darwin":
