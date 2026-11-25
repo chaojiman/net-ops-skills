@@ -62,7 +62,7 @@ python3 <skill_dir>/scripts/check_proxy_leak.py --json --redact
 2. **DNS 泄露**：经代理访问 `edns.ip-api.com/json` 须返回海外解析器，不得出现国内运营商 DNS；TUN 模式下系统解析海外域应命中 Fake-IP（`198.18.x.x`）。
 3. **WebRTC / UDP STUN**：
    - **TUN 模式**：直连 UDP STUN（v4 & v6）应返回代理出口 IP 或被阻断；返回本地家宽 IPv4 或公网 IPv6（如 `2409:`/`240e:`/`2408:`）即 UDP/IPv6 逃逸泄露 ❌。
-   - **系统代理模式**：裸 UDP 不走 HTTP 代理属正常，重点查浏览器是否装有 WebRTC 防护扩展，且 `SOCKS5 UDP ASSOCIATE` 返回代理出口 IP。
+   - **系统代理模式**：裸 UDP 不走 HTTP 代理属正常，重点查浏览器是否启用原生 WebRTC 策略 `disable_non_proxied_udp`（`Preferences` 中 `webrtc.ip_handling_policy` 或企业策略 `WebRtcIPHandling`），且 `SOCKS5 UDP ASSOCIATE` 返回代理出口 IP。
 4. **Mihomo 节点暗雷**：存活节点漏写 `udp: true` 时默认 `udp=false`，TUN 下会静默回落直连暴露家宽 IP，重点检查是否混入 `url-test` 或中转组。
 5. **出口一致性**：对比 TCP IP、UDP STUN IP 与 DNS 归属地是否匹配。
 6. **认知纠偏**：送中主要源于误开全局将国产特征带往海外节点；本机系统代理还是 TUN 对外部网络不可见，不影响被封概率。
@@ -70,7 +70,7 @@ python3 <skill_dir>/scripts/check_proxy_leak.py --json --redact
 ## 第 4 步：跨平台修复建议
 
 - **客户端层**：在覆写脚本中对未声明 `udp` 的节点统一补 `udp: true`；启用 `dns.enhanced-mode: fake-ip`；macOS TUN 确认已授权 Service Mode 且 `scutil --dns` 指向虚拟网卡；无 v6 出口时关闭 `dns.ipv6` 避免 v6 逃逸。
-- **浏览器层**：安装 **WebRTC Control** 或 **WebRTC Leak Prevent**（策略 `Disable non-proxied UDP`）；浏览器内安全 DNS（DoH）保持关闭交给客户端统一分流；Firefox 可将 `media.peerconnection.enabled` 设为 `false`。
+- **浏览器层**：优先配置浏览器原生策略 `disable_non_proxied_udp`（Chrome/Edge 写入 `Preferences` 的 `webrtc.ip_handling_policy` 或企业策略键 `WebRtcIPHandling`——注意勿误写为扩展 API 名 `WebRtcIPHandlingPolicy`）；**禁止推荐全站注入的 `WebRTC Control` 扩展**（其默认置空 `RTCPeerConnection` 易破坏网页并增加异常指纹）；浏览器内安全 DNS（DoH）保持关闭交给客户端统一分流；Firefox 可将 `media.peerconnection.enabled` 设为 `false`。
 
 ## 下一步联动
 
