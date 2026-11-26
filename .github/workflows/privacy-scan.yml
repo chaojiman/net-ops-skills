@@ -1,0 +1,28 @@
+name: Privacy & Secret Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  privacy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run privacy scanner
+        run: python3 tools/privacy_scan.py
+
+      - name: Syntax check all Python scripts
+        run: |
+          python3 -m py_compile tools/privacy_scan.py
+          python3 -m py_compile skills/ipsock-check/scripts/ipsock_check.py
+          python3 -m py_compile skills/proxy-leak-check/scripts/check_proxy_leak.py

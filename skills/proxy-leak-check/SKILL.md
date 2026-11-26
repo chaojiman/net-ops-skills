@@ -62,6 +62,6 @@ python3 <skill_dir>/scripts/check_proxy_leak.py --node "关键词" --proxy 127.0
 - **客户端层**：在覆写脚本中仅对**未声明 `udp`（`proxy.udp === undefined`）**的节点补 `udp: true`（严禁强改显式 `udp: false` 节点，若服务端不支持 UDP 会导致断流）；启用 `dns.enhanced-mode: fake-ip`；macOS TUN 确认 Service Mode 且 `scutil --dns` 指向虚拟网卡；无 v6 出口时关闭 `dns.ipv6`。
 - **浏览器层**：优先配置原生策略 `disable_non_proxied_udp`（Chrome/Edge 写入 `Preferences` 的 `webrtc.ip_handling_policy` 或企业策略键 `WebRtcIPHandling`，勿误写为 `WebRtcIPHandlingPolicy`）；**禁止推荐全站注入的 `WebRTC Control` 扩展**；关闭浏览器 DoH；Firefox 设 `media.peerconnection.enabled = false`。
 - **常见失败兜底**：
-  - **Windows 系统代理 + Tailscale `100.64.0.0/10` 断连（如 noVNC WebSocket 掐断）** → WinINet `ProxyOverride` **不支持 CIDR**（写 `100.64.0.0/10` 无效），须在绕过列表补 `100.*` 或精确 IP（如 `100.113.88.20`），或改用 `ssh -N -L 127.0.0.1:<本地端口>:<TS_IP>:<远端端口>` 走回环。
+  - **Windows 系统代理 + Tailscale `100.64.0.0/10` 断连（如 noVNC WebSocket 掐断）** → WinINet `ProxyOverride` **不支持 CIDR**（写 `100.64.0.0/10` 无效），须在绕过列表补 `100.*` 或精确 IP（如 `100.64.0.20`），或改用 `ssh -N -L 127.0.0.1:<本地端口>:<TS_IP>:<远端端口>` 走回环。
   - **控制 API 9090/9097 自动探测失败** → 通过 `--api host:port` 显式传入；系统代理下直连 STUN 返回本地 IP 属正常，切勿误判为故障。
-  - **本机防漏全绿但出口脏/断连** → 出口纯净度转 **`ipsock-check`**；服务端节点超时或协议报错转 **`nat-vps-proxy`**。
+  - **本机防漏全绿但出口脏/断连** → 出口纯净度转 **`ipsock-check`**；服务端节点超时或协议报错转 **`nat-vps-proxy`**；跨境 Tailscale 组网、自建无 SNI DERP 中继或内网分流套娃/降速转 **`tailscale-derp-ops`**。

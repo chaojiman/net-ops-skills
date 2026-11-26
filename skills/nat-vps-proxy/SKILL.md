@@ -148,4 +148,5 @@ grep -o '"private_key": "[^"]*"' /etc/sing-box/conf/VLESS-REALITY-*.json
 
 完成部署与客户端接入后：
 1. 用 **`ipsock-check`** 验收出口 IP 纯净度、风控探活与链式延迟测速；
-2. 用 **`proxy-leak-check --audit-nodes`** 确认本机无 DNS/WebRTC 泄露且新节点已启用 `udp: true`。
+2. 用 **`proxy-leak-check --audit-nodes`** 确认本机无 DNS/WebRTC 泄露且新节点已启用 `udp: true`；
+3. 如需接入跨境 Tailscale 组网、自建无 SNI 加密 DERP 中继或排查内网打洞/分流套娃问题，转 **`tailscale-derp-ops`**。

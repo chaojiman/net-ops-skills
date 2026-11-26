@@ -55,10 +55,13 @@ RE_TOKEN = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AK
 RE_USER_PATH = re.compile(r"(?:[A-Za-z]:\\Users\\|/Users/|/home/)([^\\/\s<>'\"`]+)")
 RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
 RE_B64_43 = re.compile(r"(?<![A-Za-z0-9_/-])([A-Za-z0-9_-]{43})(?![A-Za-z0-9_/-])")
+RE_TS_DOMAIN = re.compile(r"\btail[0-9a-f]{4,8}\.ts\.net\b", re.IGNORECASE)
+RE_CERT_FP = re.compile(r"\bsha256-raw:([0-9a-fA-F]{64})\b")
 
 # 非真实目录的占位用户名与常见代码词汇白名单
 ALLOWED_USERS = {"user", "username", "yourname", "ubuntu", "root", "admin", "example"}
 ALLOWED_EMAIL_DOMAINS = {"example.com", "example.org", "users.noreply.github.com"}
+ALLOWED_TS_DOMAINS = {"tail000000.ts.net", "tail123456.ts.net"}
 
 
 def is_allowed_ipv4(ip_str: str) -> bool:
@@ -162,6 +165,18 @@ def scan_file(path: Path, local_deny: list[tuple[str, re.Pattern]]) -> list[str]
                 cand = m.group(1)
                 if any(c.isdigit() for c in cand) and any(c.islower() for c in cand) and any(c.isupper() for c in cand):
                     findings.append(f"{rel}:{lineno}: 疑似 43 字符密钥 `{cand[:8]}...`")
+
+        # 9. Tailscale MagicDNS 真实后缀
+        for m in RE_TS_DOMAIN.finditer(line):
+            dom_s = m.group(0).lower()
+            if dom_s not in ALLOWED_TS_DOMAINS:
+                findings.append(f"{rel}:{lineno}: 疑似真实 Tailnet 域名 `{m.group(0)}`（请替换为 tail000000.ts.net）")
+
+        # 10. Tailscale DERP sha256-raw 证书指纹
+        for m in RE_CERT_FP.finditer(line):
+            hex_part = m.group(1)
+            if hex_part != "0" * 64:
+                findings.append(f"{rel}:{lineno}: 疑似真实 DERP 证书指纹 `{m.group(0)[:23]}...`（请替换为 sha256-raw:<64位hex指纹> 或全 0 占位）")
 
     return findings
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.0 (2026-11-26)
+
+- **新增技能 `tailscale-derp-ops`**：系统沉淀跨境 Tailscale 自建无 SNI 双栈 IP 证书 `derper`（`--verify-clients` + `-home=blank` + `tag` 同级 `icmp:*`）、`iptables/ip6tables -t mangle` 跨境禁裸 UDP `:41641` 并放行 STUN 回包、ACL `derpMap` 防非对称双中继限速收口与单滞后官方兜底、Windows Mihomo vs iOS Shadowrocket 防套娃分流与链式替代架构、内核 TCP `ss -tinp` + `derper` 日志毫秒级拆段排障，以及多 Agent 协作演化日志 `references/findings-log.md`。
+- `ipsock-check`（`SKILL.md`）：新增「多节点横向对比测速统一四维口径（`204 响应` → `单流 5MB` → `最低握手` → `4 并发 20MB`）」规范。
+- `proxy-leak-check`（`SKILL.md`）：将 Windows `ProxyOverride` 示例 IP 进一步脱敏为 RFC 6598 保留段示例 `100.64.0.20`，并补充与 `tailscale-derp-ops` 的相互联动指引。
+- 隐私与 CI 防线：升级 `tools/privacy_scan.py` 新增真实 Tailnet MagicDNS（`tail*.ts.net`）与 DERP 证书 `sha256-raw` 指纹拦截，并在 `.github/workflows/privacy-scan.yml` 正式启用 GitHub Actions 自动隐私与语法检查。
+- 文档完善：更新 `README.md` 四技能总览、典型顺序、安装命令及「多 Agent 协作沉淀规范」，同步更新 `nat-vps-proxy` 联动引用。
+
 ## v1.3.0 (2026-11-25)
 
 - `nat-vps-proxy`（`references/server-benchmark.md`）：新增「客户端安全测速四维权重（`204 响应` → `单流 5MB` → `最低握手` → `4 并发 QoS 照妖镜`）与链式中转前置故障转移排序范式」（双层同测、剔除面板假低延迟丢包点、识别风控期并发限速、跨云异构容灾及双栈 `fallback` 选线避坑）。
