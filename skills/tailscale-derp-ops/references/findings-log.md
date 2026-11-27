@@ -80,3 +80,17 @@
 - **实测证据**：在 `sing-box` `route.rules` 的 `100.64.0.0/10 reject` 规则**之前**，只针对本机（或经 ACL 授权的单向内网接收端）精准 IP 插入 `direct` 出站放行，既保持对其余 CGNAT / 云元数据 SSRF 的拦截，又让链式直通内网导航/SSH 稳定可用。
 - **最终结论与规避方案**：防 SSRF 拦截规则前为受控的自身/下级 Tailscale 单 IP 开精确白名单。
 - **验证状态**：已实测闭环。
+
+### [2026-11-27] Tailscale 多端口 Web 服务需要「全 HTTPS + 误敲 HTTP 自动 301」时，改用 Nginx + `tailscale cert`，避开 `tailscale serve` 与 `error_page 497` 二次跳转坑
+- **环境与条件**：Linux Tailscale 节点同时托管多个内网 Web 管理面（含静态导航、WebSocket/SSE 长连接、大文件上传与 Host 白名单防护）及少量原生 TCP 端口，要求免端口主入口 `https://vps-a.tail000000.ts.net/` 且所有 Web 端口误敲 `http://` 自动 `301` 跳转 HTTPS。
+- **现象与误区**：直接对 `tailscale serve --https=8443` 端口误敲 `http://` 会直接返回 `HTTP 400: Client sent an HTTP request to an HTTPS server`，无法自动跳转；且 `tailscale serve` 不提供 `gzip`、SSE `proxy_buffering off`、大文件上传上限与非法 `Host` 的 `return 444` 断连防护。此外，宿主机常有历史遗留站点（如已迁至 Cloudflare Tunnel `127.0.0.1:8080` 后未删的 `sites-enabled` 软链）占着 `0.0.0.0:80/443`。若把 `error_page 497 =301 https://vps-a.tail000000.ts.net:$server_port$request_uri;` 放进共享 SSL snippet，还会导致 `:443` 与旧跳转端口（如 `:8093`）产生冗余端口或二次 `301` 跳转。
+- **实测证据**：改用 `tailscale cert` 导出正规 Let's Encrypt 证书并配 weekly systemd timer 自动续期重载 Nginx，释放闲置 `0.0.0.0:80/443` 软链、仅将 Nginx 绑定在 Tailscale 网卡 IP（`100.64.0.20` / `fd7a:...`，配合 `nginx.service.d/wait-tailscale.conf` 防开机 `EADDRNOTAVAIL`），同时保留 `127.0.0.1` 回环纯 HTTP 给本机健康检查/脚本、`tailscale serve` 仅保留给非 HTTP 的原始 TCP 转发（如原生 TCP 服务端口）；共享 SSL snippet 不写 `error_page 497`，改为在各 `server` 块显式声明（`:443` 与旧端口 `:8093` 直接单跳 `https://vps-a.tail000000.ts.net$request_uri`，自定义业务端口单跳 `https://vps-a.tail000000.ts.net:$server_port$request_uri`）。实测 `ss -tulnp` 确认 `0.0.0.0`/`:::` 零 Web 监听，全端口严格 TLS（不带 `-k`）`ssl_verify=0`，所有端口 HTTP 单跳 `301`，非法 Host 访问管理面板触发 `444` 直接断连。
+- **最终结论与规避方案**：纯单端口快速暴露可用 `tailscale serve`；多端口内网 Web 需强转 HTTPS 与高级代理特性时，统一采用「`tailscale cert` 定时同步 + Nginx 专绑 Tailscale 网卡 + `127.0.0.1` 留纯 HTTP + 按 `server` 块单跳 `error_page 497`」架构，后端纯 API 端口（如内网检索接口）可保持内网 HTTP 不必强迁。
+- **验证状态**：已实测闭环。
+
+### [2026-11-27] SSH 目标为 Tailscale 内网 `100.x` IP 时，移除冗余本机 HTTP `ProxyCommand` 改为直连
+- **环境与条件**：Windows 控制端运行官方 `tailscaled`（走自建 DERP 稳定直通）与本地 HTTP 代理 `127.0.0.1:7890`，`~/.ssh/config` 中某个 `Host` 的 `HostName` 已指向 `100.64.0.20` 等 Tailscale 内网地址，但沿用了访问公网 IP 时的 `ProxyCommand connect.exe -H 127.0.0.1:7890 %h %p`。
+- **现象与误区**：SSH 虽本身端到端加密不会泄密，但把 Tailscale 内网 IP 经本机代理绕行既增加无谓延迟，一旦代理分流规则把 `100.64.0.0/10` 错发至外部代理节点还会导致 SSH 直接断连。
+- **实测证据**：仅删除指向 Tailscale 内网 IP 的 `Host` 块下的 `ProxyCommand`（保留指向公网 IP 入口的 `Host` 代理配置），执行 `ssh -G <host>` 确认不再解析 `proxycommand`，不带 `-o ProxyCommand=none` 直接 `ssh -o ConnectTimeout=8 <host> "hostname"` 退出码 `0` 稳定直连。
+- **最终结论与规避方案**：`~/.ssh/config` 严格区分公网入口与 Tailscale 内网入口——凡 `HostName` 为 `100.64.0.0/10` 或 `*.ts.net` 的条目一律去掉 `ProxyCommand` 走本机 Tailscale 网卡直连。
+- **验证状态**：已实测闭环。

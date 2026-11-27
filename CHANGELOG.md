@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.4.1 (2026-11-27)
+
+- `tailscale-derp-ops`（`references/findings-log.md`）：新增「Tailscale 多端口 Web 服务改用 Nginx + `tailscale cert` 实现全端口 HTTPS 与 `error_page 497` 单跳 `301`（避开 `tailscale serve` HTTP 400 与共享 snippet 二次跳转坑）」以及「SSH 目标为 Tailscale 内网 `100.x` IP 时移除冗余本机 HTTP `ProxyCommand` 改为直连」两条实测沉淀。
+
 ## v1.4.0 (2026-11-26)
 
 - **新增技能 `tailscale-derp-ops`**：系统沉淀跨境 Tailscale 自建无 SNI 双栈 IP 证书 `derper`（`--verify-clients` + `-home=blank` + `tag` 同级 `icmp:*`）、`iptables/ip6tables -t mangle` 跨境禁裸 UDP `:41641` 并放行 STUN 回包、ACL `derpMap` 防非对称双中继限速收口与单滞后官方兜底、Windows Mihomo vs iOS Shadowrocket 防套娃分流与链式替代架构、内核 TCP `ss -tinp` + `derper` 日志毫秒级拆段排障，以及多 Agent 协作演化日志 `references/findings-log.md`。
